@@ -16,8 +16,8 @@ module RubyQuest
   TIME_LIMIT = 2 # seconds any snippet may run (guards against infinite loops)
 
   # Lessons are described with this small DSL; see lessons.rb.
-  Lesson = Struct.new(:title, :intro, :questions)
-  Question = Struct.new(:type, :prompt, :code, :choices, :answer, :check,
+  Lesson = Struct.new(:title, :intro, :try, :questions)
+  Question = Struct.new(:type, :prompt, :code, :choices, :answer, :tests,
                         :solution, :hint, :explain, keyword_init: true)
   Result = Struct.new(:value, :out, :error) do
     def text = out.strip
@@ -27,8 +27,9 @@ module RubyQuest
   LESSONS = []
 
   class LessonBuilder
-    def initialize(title) = @lesson = Lesson.new(title, "", [])
+    def initialize(title) = @lesson = Lesson.new(title, "", nil, [])
     def intro(text) = @lesson.intro = text
+    def try(code) = @lesson.try = code # example to experiment with (web version)
     def build = @lesson
 
     # "What does this print?"
@@ -46,10 +47,10 @@ module RubyQuest
       add(type: :choice, prompt: prompt, choices: choices, answer: answer, hint: hint, explain: explain)
     end
 
-    # The player writes code; check receives a runner `run.(before, after)`
-    # that evaluates before + player's code + after and returns a Result.
-    def write(prompt, solution:, check:, hint: nil, explain:)
-      add(type: :write, prompt: prompt, solution: solution, check: check, hint: hint, explain: explain)
+    # The player writes code that must pass every test: each test runs
+    # before + player's code + after, then compares `out` and/or `value`.
+    def write(prompt, solution:, tests:, hint: nil, explain:)
+      add(type: :write, prompt: prompt, solution: solution, tests: tests, hint: hint, explain: explain)
     end
 
     private
@@ -69,7 +70,7 @@ module RubyQuest
 
     def run(code)
       constants_before = Object.constants
-      scope = Object.new.instance_eval { binding }
+      scope = TOPLEVEL_BINDING.eval("Object.new.instance_eval { binding }") # top-level, so classes land on Object
       captured = StringIO.new
       real_stdout = $stdout
       $stdout = captured
@@ -274,13 +275,11 @@ module RubyQuest
 
     def grade_write(q, answer)
       last = nil
-      runner = lambda do |before = "", after = ""|
-        last = Sandbox.run([before, answer, after].reject(&:empty?).join("\n"))
-      end
-      passed = begin
-        q.check.call(runner)
-      rescue StandardError
-        false
+      passed = q.tests.all? do |test|
+        last = Sandbox.run([test[:before], answer, test[:after]].compact.join("\n"))
+        last.error.nil? &&
+          (!test.key?(:out) || last.lines.join("\n") == test[:out]) &&
+          (!test.key?(:value) || last.value == test[:value])
       end
       return [true, nil] if passed
 
@@ -330,6 +329,9 @@ module RubyQuest
   def self.self_test
     failures = []
     LESSONS.each_with_index do |lesson, li|
+      if lesson.try && (error = Sandbox.run(lesson.try).error)
+        failures << "Lesson #{li + 1} (#{lesson.title}), try example: #{error}"
+      end
       lesson.questions.each_with_index do |q, qi|
         where = "Lesson #{li + 1} (#{lesson.title}), question #{qi + 1}"
         case q.type

@@ -4,8 +4,15 @@ An interactive terminal game that teaches Ruby from the very beginning.
 It explains a concept, asks you questions, checks your answers by actually
 running Ruby, and corrects you with an explanation when you get one wrong.
 
+There are two ways to play, built from the same lessons:
+
+- **In a browser**: a web page with a scratchpad for each lesson. A real Ruby
+  (ruby.wasm) runs in the page to check your code.
+- **In a terminal**: the original text game.
+
 ```sh
-ruby learn/ruby_quest.rb              # play (needs Ruby 3.0+)
+ruby learn/web/build.rb               # build the web page into learn/web/dist/
+ruby learn/ruby_quest.rb              # play in the terminal (needs Ruby 3.0+)
 ruby learn/ruby_quest.rb --reset      # forget saved progress
 ruby learn/ruby_quest.rb --self-test  # verify every question's answer key
 ```
@@ -34,4 +41,6 @@ ruby learn/ruby_quest.rb --self-test  # verify every question's answer key
 11. Classes and objects
 12. `nil`, truthiness and errors
 
-Add your own questions in `lessons.rb`, then run `--self-test` to check them.
+Add your own questions in `lessons.rb`, run `--self-test` to check them, then
+rebuild the web page. `learn/web/dist/` holds `index.html` and `ruby.wasm.gz`
+(downloaded from npm on the first build); serve or publish them side by side.

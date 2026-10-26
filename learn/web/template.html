@@ -1,0 +1,903 @@
+<title>Ruby Quest</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&family=Young+Serif&display=swap">
+<style>
+/* Layout: a workbook — lesson rail on the left, one lesson "page" at a time on the right;
+   code always sits on a dark irb-style panel, in both themes. */
+:root {
+  --paper: #f8f5f6;
+  --surface: #ffffff;
+  --ink: #241519;
+  --muted: #6f5d63;
+  --line: #e7dcdf;
+  --ruby: #ad1440;
+  --ruby-ink: #ffffff;
+  --ruby-soft: #f8e3e9;
+  --good: #1b6f4c;
+  --good-soft: #e1f1e9;
+  --warn: #8a5a08;
+  --warn-soft: #faefd6;
+  --panel: #2a1b20;
+  --panel-ink: #f4eaed;
+  --panel-muted: #a8939a;
+  --tok-str: #f1c27d;
+  --tok-kw: #ff7aa2;
+  --tok-sym: #9ad7c0;
+  --tok-num: #c9b2ff;
+  --tok-com: #8f7a81;
+  --tok-const: #ffb38a;
+  --focus: #2f6fdb;
+  --font-display: "Young Serif", Georgia, "Times New Roman", serif;
+  --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #151012; --surface: #1e171a; --ink: #f2e8eb; --muted: #ab9aa0; --line: #3a2d32;
+    --ruby: #f2557f; --ruby-ink: #1a0a10; --ruby-soft: #3b1a25;
+    --good: #5fcf9d; --good-soft: #15302a; --warn: #e9b35c; --warn-soft: #33281a;
+    --panel: #0e090b; --panel-ink: #f4eaed; --panel-muted: #98848b; --focus: #7aa7ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #151012; --surface: #1e171a; --ink: #f2e8eb; --muted: #ab9aa0; --line: #3a2d32;
+  --ruby: #f2557f; --ruby-ink: #1a0a10; --ruby-soft: #3b1a25;
+  --good: #5fcf9d; --good-soft: #15302a; --warn: #e9b35c; --warn-soft: #33281a;
+  --panel: #0e090b; --panel-ink: #f4eaed; --panel-muted: #98848b; --focus: #7aa7ff;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.6 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+code, pre, textarea.code { font-family: var(--font-code); font-size: 0.9em; }
+
+.shell { max-width: 1120px; margin: 0 auto; padding-block: 20px 56px; display: grid; gap: 24px; }
+
+/* ---- top bar ---- */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand svg { width: 36px; height: 36px; flex: none; }
+.brand h1 { font: 400 1.65rem/1 var(--font-display); margin: 0; letter-spacing: 0.01em; }
+.brand p { margin: 2px 0 0; color: var(--muted); font-size: 0.85rem; }
+.status { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); font-size: 0.82rem; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.chip strong { color: var(--ink); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); flex: none; }
+.chip[data-state="loading"] .dot { animation: pulse 1.2s ease-in-out infinite; }
+.chip[data-state="ready"] .dot { background: var(--good); }
+.chip[data-state="failed"] .dot { background: var(--ruby); }
+@keyframes pulse { 50% { opacity: 0.3; } }
+
+/* ---- layout ---- */
+.layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 28px; align-items: start; }
+.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+.rail h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin: 0 0 8px 10px; }
+.rail ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.lesson-btn {
+  width: 100%; display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 2px 8px; align-items: center;
+  text-align: left; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; cursor: pointer;
+}
+.lesson-btn:hover { background: var(--surface); }
+.lesson-btn[aria-current="true"] { background: var(--surface); box-shadow: inset 3px 0 0 var(--ruby); }
+.lesson-btn .num { font: 0.8rem var(--font-code); color: var(--muted); font-variant-numeric: tabular-nums; }
+.lesson-btn .name { font-size: 0.93rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lesson-btn .best { font: 0.75rem var(--font-code); color: var(--muted); font-variant-numeric: tabular-nums; }
+.lesson-btn.done .best { color: var(--good); }
+.lesson-btn .meter { grid-column: 2 / 4; height: 3px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.lesson-btn .meter span { display: block; height: 100%; background: var(--good); }
+
+.stage {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  padding: clamp(20px, 4vw, 40px); min-width: 0; display: grid; gap: 22px;
+}
+.eyebrow { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ruby); font-weight: 700; margin: 0; }
+.stage h2 { font: 400 clamp(1.7rem, 3.6vw, 2.4rem)/1.15 var(--font-display); margin: 4px 0 0; text-wrap: balance; }
+.stage h3 { font: 400 1.25rem/1.3 var(--font-display); margin: 0; }
+.prose { display: grid; gap: 14px; max-width: 68ch; }
+.prose p { margin: 0; }
+.prose code { background: var(--ruby-soft); padding: 1px 5px; border-radius: 4px; }
+
+/* ---- code panels ---- */
+.code {
+  background: var(--panel); color: var(--panel-ink); border-radius: var(--radius); margin: 0;
+  padding: 14px 18px; overflow-x: auto; line-height: 1.55; font-size: 0.9rem; tab-size: 2;
+}
+.code .com { color: var(--tok-com); font-style: italic; }
+.code .str { color: var(--tok-str); }
+.code .kw { color: var(--tok-kw); }
+.code .sym { color: var(--tok-sym); }
+.code .num { color: var(--tok-num); }
+.code .ivar, .code .const { color: var(--tok-const); }
+.code .bi { color: var(--tok-sym); }
+
+/* ---- playground ---- */
+.playground { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: grid; }
+.playground header {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 14px; background: var(--paper); border-bottom: 1px solid var(--line);
+}
+.playground header h3 { font-size: 1.05rem; }
+.playground header p { margin: 0; color: var(--muted); font-size: 0.85rem; }
+textarea.code { width: 100%; border: 0; border-radius: 0; resize: vertical; min-height: 9rem; display: block; }
+textarea.code:focus-visible { outline-offset: -3px; }
+.console { margin: 0; padding: 12px 18px; background: var(--panel); color: var(--panel-ink); border-top: 1px solid var(--line);
+  font: 0.88rem/1.55 var(--font-code); white-space: pre-wrap; word-break: break-word; min-height: 3rem; }
+.console .ret { color: var(--tok-sym); }
+.console .err { color: var(--tok-kw); }
+.console .muted { color: var(--panel-muted); }
+
+/* ---- buttons ---- */
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn {
+  border: 1px solid var(--line); background: var(--surface); padding: 9px 16px; border-radius: 8px;
+  cursor: pointer; font-weight: 700; font-size: 0.95rem;
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--ruby); border-color: var(--ruby); color: var(--ruby-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.quiet { border-color: transparent; color: var(--muted); font-weight: 400; }
+.btn.quiet:hover { color: var(--ink); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.kbd { font: 0.75rem var(--font-code); color: var(--muted); }
+
+/* ---- questions ---- */
+.track { display: flex; gap: 4px; }
+.track span { flex: 1; height: 6px; border-radius: 3px; background: var(--line); }
+.track .r2 { background: var(--good); }
+.track .r1 { background: var(--warn); }
+.track .r0 { background: var(--ruby); }
+.track .now { background: var(--ink); }
+.qhead { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+.kind { font-size: 0.8rem; color: var(--muted); }
+.qprompt { font-size: 1.15rem; margin: 0; max-width: 68ch; }
+.answer { display: grid; gap: 8px; }
+.answer label { font-size: 0.85rem; color: var(--muted); }
+.answer-line { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.answer-line:focus-within { border-color: var(--focus); box-shadow: 0 0 0 2px var(--focus); }
+.answer-line .prompt { font: 0.95rem var(--font-code); color: var(--ruby); padding: 10px 0 10px 12px; user-select: none; }
+.answer-line input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 10px 12px; font-family: var(--font-code); font-size: 0.95rem; }
+.answer-line input:focus-visible { outline: none; }
+.write-box { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); }
+.write-box:focus-within { box-shadow: 0 0 0 3px var(--focus); }
+.write-box textarea.code { min-height: 6.5rem; padding: 12px 16px; background: var(--panel); color: var(--panel-ink); }
+.choices { display: grid; gap: 8px; }
+.choice {
+  display: flex; gap: 12px; align-items: center; text-align: left; padding: 11px 14px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--paper); cursor: pointer;
+}
+.choice:hover:not(:disabled) { border-color: var(--muted); }
+.choice .letter { font: 700 0.85rem var(--font-code); color: var(--ruby); width: 1.2em; }
+.choice code { font-size: 0.95em; }
+.choice.wrong { border-color: var(--ruby); background: var(--ruby-soft); }
+.choice.right { border-color: var(--good); background: var(--good-soft); }
+.choice:disabled { cursor: default; }
+
+.feedback { border-radius: var(--radius); padding: 14px 18px; display: grid; gap: 8px; border: 1px solid; }
+.feedback[hidden] { display: none; }
+.feedback.good { background: var(--good-soft); border-color: var(--good); }
+.feedback.bad { background: var(--ruby-soft); border-color: var(--ruby); }
+.feedback.hint { background: var(--warn-soft); border-color: var(--warn); }
+.feedback p { margin: 0; }
+.feedback .verdict { font-weight: 700; }
+.feedback.good .verdict { color: var(--good); }
+.feedback.bad .verdict { color: var(--ruby); }
+.feedback.hint .verdict { color: var(--warn); }
+.feedback .solution { font-family: var(--font-code); font-size: 0.92rem; background: var(--surface); padding: 6px 10px; border-radius: 6px; overflow-x: auto; white-space: pre; }
+
+/* ---- summary ---- */
+.score { font: 400 clamp(2.6rem, 7vw, 3.6rem)/1 var(--font-display); color: var(--ruby); font-variant-numeric: tabular-nums; }
+.score small { font-size: 0.4em; color: var(--muted); }
+.recap { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.recap li { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.recap .pts { font: 700 0.85rem var(--font-code); text-align: center; border-radius: 6px; padding: 1px 0; }
+.recap .p2 { color: var(--good); background: var(--good-soft); }
+.recap .p1 { color: var(--warn); background: var(--warn-soft); }
+.recap .p0 { color: var(--ruby); background: var(--ruby-soft); }
+.recap span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 800px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .rail { position: static; }
+  .rail h2 { margin-left: 0; }
+  .rail ol { display: flex; overflow-x: auto; gap: 6px; padding-bottom: 6px; scroll-snap-type: x proximity; }
+  .rail li { flex: 0 0 auto; scroll-snap-align: start; }
+  .lesson-btn { width: auto; max-width: 220px; background: var(--surface); border: 1px solid var(--line); }
+  .lesson-btn[aria-current="true"] { box-shadow: inset 0 -3px 0 var(--ruby); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="shell">
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 36 36" aria-hidden="true">
+        <polygon points="18,33 2,13 9,4 27,4 34,13" fill="var(--ruby)"/>
+        <polygon points="9,4 27,4 22,13 14,13" fill="var(--ruby-soft)" opacity="0.55"/>
+        <polygon points="2,13 14,13 18,33" fill="var(--ink)" opacity="0.18"/>
+        <polygon points="14,13 22,13 18,33" fill="var(--surface)" opacity="0.25"/>
+      </svg>
+      <div>
+        <h1>Ruby Quest</h1>
+        <p>Learn Ruby from zero, one question at a time</p>
+      </div>
+    </div>
+    <div class="status">
+      <span class="chip" id="points" title="Best score across all lessons">Points <strong>0</strong></span>
+      <span class="chip" id="engine" data-state="loading" role="status"><span class="dot"></span><span id="engine-text">Starting Ruby…</span></span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="rail" aria-label="Lessons">
+      <h2>Lessons</h2>
+      <ol id="lessons"></ol>
+    </nav>
+    <main class="stage" id="stage" aria-live="polite"></main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@ruby/wasm-wasi@2.7.2/dist/browser.umd.js"></script>
+<script>
+"use strict";
+const LESSONS = /*LESSONS*/null;
+const HARNESS = /*HARNESS*/null;
+const UMD_URL = "https://cdn.jsdelivr.net/npm/@ruby/wasm-wasi@2.7.2/dist/browser.umd.js";
+const SEP = "\u0001";
+const TIME_LIMIT_MS = 4000;
+const STORE_KEY = "ruby-quest-v1";
+
+/* ================= Ruby engine (ruby.wasm in a worker) ================= */
+
+const Engine = {
+  state: "loading",
+  module: null,
+  worker: null,
+  mainVm: null,
+  seq: 0,
+  pending: new Map(),
+  waiters: [],
+
+  set(state, detail) {
+    this.state = state;
+    const chip = document.getElementById("engine");
+    chip.dataset.state = state;
+    document.getElementById("engine-text").textContent =
+      state === "ready" ? "Ruby 3.3 is running" :
+      state === "failed" ? "Ruby couldn't start here" : "Starting Ruby…";
+    chip.title = state === "failed"
+      ? "Code answers will be compared with a model answer instead. " + (detail || "")
+      : state === "ready" ? "A real Ruby runs in this page and checks your answers." : "Downloading Ruby (about 5 MB)…";
+    if (state !== "loading") this.waiters.splice(0).forEach((resolve) => resolve());
+    if (typeof onEngineChange === "function") onEngineChange();
+  },
+
+  settled() {
+    return this.state === "loading" ? new Promise((resolve) => this.waiters.push(resolve)) : Promise.resolve();
+  },
+
+  async boot() {
+    try {
+      const res = await fetch("ruby.wasm.gz");
+      if (!res.ok) throw new Error("download failed (" + res.status + ")");
+      let bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+        bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+      }
+      this.module = await WebAssembly.compile(bytes);
+      await this.start();
+      this.set("ready");
+    } catch (err) {
+      console.warn("Ruby Quest: Ruby engine unavailable", err);
+      this.set("failed", String(err && err.message || err));
+    }
+  },
+
+  async start() {
+    try {
+      await this.startWorker();
+    } catch (err) {
+      console.warn("Ruby Quest: worker unavailable, running Ruby on the page", err);
+      await this.startMain();
+    }
+  },
+
+  startWorker() {
+    return new Promise((resolve, reject) => {
+      const source = `
+        importScripts(${JSON.stringify(UMD_URL)});
+        let vm;
+        onmessage = async (event) => {
+          const msg = event.data;
+          if (msg.type === "init") {
+            try {
+              ({ vm } = await self["ruby-wasm-wasi"].DefaultRubyVM(msg.module, { consolePrint: false }));
+              vm.eval(msg.harness);
+              postMessage({ type: "ready" });
+            } catch (err) {
+              postMessage({ type: "failed", error: String(err && err.message || err) });
+            }
+            return;
+          }
+          try {
+            postMessage({ id: msg.id, result: vm.eval(msg.code).toString() });
+          } catch (err) {
+            postMessage({ id: msg.id, error: String(err && err.message || err) });
+          }
+        };`;
+      let worker;
+      try {
+        worker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
+      } catch (err) {
+        reject(err);
+        return;
+      }
+      const fail = (err) => { clearTimeout(timer); worker.terminate(); reject(err); };
+      const timer = setTimeout(() => fail(new Error("worker took too long to start")), 30000);
+      worker.onerror = (event) => { event.preventDefault(); fail(new Error(event.message || "worker error")); };
+      worker.onmessage = (event) => {
+        const msg = event.data;
+        if (msg.type === "failed") return fail(new Error(msg.error));
+        if (msg.type !== "ready") return;
+        clearTimeout(timer);
+        worker.onerror = null;
+        worker.onmessage = (e) => this.reply(e.data);
+        this.worker = worker;
+        resolve();
+      };
+      worker.postMessage({ type: "init", module: this.module, harness: HARNESS });
+    });
+  },
+
+  async startMain() {
+    const lib = window["ruby-wasm-wasi"];
+    if (!lib) throw new Error("the Ruby loader script was blocked");
+    const { vm } = await lib.DefaultRubyVM(this.module, { consolePrint: false });
+    vm.eval(HARNESS);
+    this.mainVm = vm;
+  },
+
+  reply(msg) {
+    const job = this.pending.get(msg.id);
+    if (!job) return;
+    clearTimeout(job.timer);
+    this.pending.delete(msg.id);
+    job.resolve(msg);
+  },
+
+  async eval(code) {
+    await this.settled();
+    if (this.worker) {
+      return new Promise((resolve) => {
+        const id = ++this.seq;
+        const timer = setTimeout(() => this.restart(), TIME_LIMIT_MS);
+        this.pending.set(id, { resolve, timer });
+        this.worker.postMessage({ id, code });
+      });
+    }
+    if (this.mainVm) {
+      try { return { result: this.mainVm.eval(code).toString() }; }
+      catch (err) { return { error: String(err && err.message || err) }; }
+    }
+    return { error: "Ruby isn't available in this browser." };
+  },
+
+  // Code ran too long: stop the worker, answer every waiting call, start a fresh Ruby.
+  restart() {
+    this.worker.terminate();
+    this.worker = null;
+    for (const job of this.pending.values()) { clearTimeout(job.timer); job.resolve({ timeout: true }); }
+    this.pending.clear();
+    this.set("loading");
+    this.start().then(() => this.set("ready"), (err) => this.set("failed", String(err)));
+  },
+};
+
+// A Ruby string literal for any JS string ("#" escaped so nothing interpolates).
+const rb = (s) => (s == null ? "nil" : JSON.stringify(s).replace(/#/g, "\\u0023"));
+
+const Ruby = {
+  available: () => Engine.state !== "failed",
+  async call(expr) {
+    const r = await Engine.eval(expr);
+    if (r.timeout) return { timeout: true };
+    if (r.error) return { error: r.error };
+    return { parts: r.result.split(SEP) };
+  },
+  snippet: (code) => Ruby.call(`Quest.snippet(${rb(code)})`),
+  same: (answer, expected) => Ruby.call(`Quest.same(${rb(answer)}, ${rb(expected)})`),
+  check: (code, tests) =>
+    Ruby.call(`Quest.check(${rb(code)}, [${tests.map((t) => "[" + t.map(rb).join(", ") + "]").join(", ")}])`),
+};
+
+/* ================= helpers ================= */
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const squish = (s) => String(s).trim().split(/\s+/).filter(Boolean).join(" ");
+const KINDS = { output: "What does it print?", value: "What does it return?", choice: "Multiple choice", write: "Write the code" };
+
+const TOKEN = /(#.*$)|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*')|(@\w+)|(:[A-Za-z_]\w*[?!]?|\b[a-z_]\w*:(?=\s))|(\b\d[\d_]*(?:\.\d+)?\b)|\b(def|end|if|elsif|else|unless|while|until|do|class|module|return|begin|rescue|ensure|then|true|false|nil|self|super|yield|and|or|not)\b|\b(puts|print|p|attr_reader|attr_writer|attr_accessor|require|loop|new)\b|(\b[A-Z]\w*)/gm;
+const TOKEN_CLASS = [null, "com", "str", "ivar", "sym", "num", "kw", "bi", "const"];
+
+function highlight(code) {
+  let html = "";
+  let last = 0;
+  for (const m of code.matchAll(TOKEN)) {
+    html += esc(code.slice(last, m.index));
+    const group = m.findIndex((g, i) => i > 0 && g !== undefined);
+    html += `<span class="${TOKEN_CLASS[group]}">${esc(m[0])}</span>`;
+    last = m.index + m[0].length;
+  }
+  return html + esc(code.slice(last));
+}
+
+const inline = (text) => esc(text).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+// Intro text: blank-line separated paragraphs; 4-space indented blocks are code.
+function renderIntro(text) {
+  const blocks = [];
+  for (const chunk of text.trim().split(/\n\s*\n/)) {
+    const lines = chunk.split("\n");
+    const isCode = lines.every((l) => l.startsWith("    ") || !l.trim());
+    const prev = blocks[blocks.length - 1];
+    if (isCode) {
+      const code = lines.map((l) => l.slice(4)).join("\n");
+      if (prev && prev.code) prev.text += "\n\n" + code; else blocks.push({ code: true, text: code });
+    } else {
+      blocks.push({ code: false, text: lines.map((l) => l.trim()).join(" ") });
+    }
+  }
+  return blocks.map((b) => b.code ? `<pre class="code">${highlight(b.text)}</pre>` : `<p>${inline(b.text)}</p>`).join("");
+}
+
+/* ================= progress ================= */
+
+const Store = {
+  data: { best: {}, last: 0 },
+  load() {
+    try { Object.assign(this.data, JSON.parse(localStorage.getItem(STORE_KEY)) || {}); } catch (e) { /* storage unavailable */ }
+  },
+  save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(this.data)); } catch (e) { /* storage unavailable */ }
+  },
+};
+
+const maxPoints = (lesson) => lesson.questions.length * 2;
+
+/* ================= game state & views ================= */
+
+const S = { lesson: 0, view: "intro", q: 0, tries: 0, results: [], resolved: false };
+
+function renderRail() {
+  const list = document.getElementById("lessons");
+  const nextUp = LESSONS.findIndex((_, i) => Store.data.best[i] == null);
+  list.innerHTML = LESSONS.map((lesson, i) => {
+    const best = Store.data.best[i];
+    const pct = best == null ? 0 : Math.round((best / maxPoints(lesson)) * 100);
+    return `<li><button class="lesson-btn${best != null ? " done" : ""}" data-lesson="${i}" aria-current="${i === S.lesson}">
+      <span class="num">${String(i + 1).padStart(2, "0")}</span>
+      <span class="name">${esc(lesson.title)}</span>
+      <span class="best">${best != null ? `${best}/${maxPoints(lesson)}` : i === nextUp ? "next" : ""}</span>
+      <span class="meter" aria-hidden="true"><span style="width:${pct}%"></span></span>
+    </button></li>`;
+  }).join("");
+  const total = LESSONS.reduce((sum, _, i) => sum + (Store.data.best[i] || 0), 0);
+  const max = LESSONS.reduce((sum, l) => sum + maxPoints(l), 0);
+  document.getElementById("points").innerHTML = `Points <strong>${total}</strong> / ${max}`;
+  const current = list.querySelector('[aria-current="true"]');
+  if (current && window.matchMedia("(max-width: 800px)").matches) current.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+
+function openLesson(index) {
+  Object.assign(S, { lesson: index, view: "intro", q: 0, tries: 0, results: [], resolved: false });
+  Store.data.last = index;
+  Store.save();
+  render();
+  document.getElementById("stage").scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+function render() {
+  renderRail();
+  const stage = document.getElementById("stage");
+  if (S.view === "intro") renderLessonIntro(stage);
+  else if (S.view === "question") renderQuestion(stage);
+  else renderSummary(stage);
+}
+
+/* ---- lesson intro + playground ---- */
+
+function renderLessonIntro(stage) {
+  const lesson = LESSONS[S.lesson];
+  stage.innerHTML = `
+    <div>
+      <p class="eyebrow">Lesson ${S.lesson + 1} of ${LESSONS.length}</p>
+      <h2>${esc(lesson.title)}</h2>
+    </div>
+    <div class="prose">${renderIntro(lesson.intro)}</div>
+    ${lesson.try ? `
+    <section class="playground" aria-labelledby="try-title">
+      <header>
+        <div><h3 id="try-title">Try it yourself</h3><p>Edit the code and run it. Nothing you do here is graded.</p></div>
+        <div class="row">
+          <button class="btn quiet" id="try-reset" type="button">Reset</button>
+          <button class="btn primary" id="try-run" type="button">Run ▸</button>
+        </div>
+      </header>
+      <textarea class="code" id="try-code" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Ruby code to run" style="background:var(--panel);color:var(--panel-ink);padding:14px 18px">${esc(lesson.try.trimEnd())}</textarea>
+      <pre class="console" id="try-out"><span class="muted">${consoleHint()}</span></pre>
+    </section>` : ""}
+    <div class="row">
+      <button class="btn primary" id="start" type="button">Start the ${lesson.questions.length} questions →</button>
+      <span class="kbd">2 points for a first-try answer, 1 for the second try</span>
+    </div>`;
+  $("#start", stage).onclick = () => { S.view = "question"; render(); focusAnswer(); };
+  if (!lesson.try) return;
+  const code = $("#try-code", stage);
+  sizeToFit(code);
+  code.addEventListener("input", () => sizeToFit(code));
+  code.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); runPlayground(); }
+    else indentOnTab(e);
+  });
+  $("#try-run", stage).onclick = runPlayground;
+  $("#try-reset", stage).onclick = () => { code.value = lesson.try.trimEnd(); sizeToFit(code); $("#try-out").innerHTML = `<span class="muted">${consoleHint()}</span>`; };
+}
+
+function consoleHint() {
+  if (Engine.state === "failed") return "Ruby couldn't start in this browser, so the code can't run here. The lessons and questions still work.";
+  return Engine.state === "ready" ? "Press Run (or Ctrl+Enter) to see the output here." : "Ruby is starting up… you can press Run as soon as you like.";
+}
+
+async function runPlayground() {
+  const out = $("#try-out");
+  const btn = $("#try-run");
+  if (!out) return;
+  btn.disabled = true;
+  out.innerHTML = `<span class="muted">Running…</span>`;
+  const r = await Ruby.snippet($("#try-code").value);
+  btn.disabled = false;
+  if (!document.body.contains(out)) return;
+  if (r.timeout) { out.innerHTML = `<span class="err">Stopped: the code ran for more than ${TIME_LIMIT_MS / 1000} seconds. Is there a loop that never ends?</span>`; return; }
+  if (r.error) { out.innerHTML = `<span class="err">${esc(r.error)}</span>`; return; }
+  const [printed, error, value] = r.parts;
+  out.innerHTML = esc(printed) + (error ? `<span class="err">${esc(error)}</span>` : `<span class="ret">=&gt; ${esc(value)}</span>`);
+}
+
+function sizeToFit(textarea) {
+  textarea.style.height = "auto";
+  textarea.style.height = textarea.scrollHeight + 4 + "px";
+}
+
+function indentOnTab(e) {
+  if (e.key !== "Tab" || e.shiftKey) return;
+  e.preventDefault();
+  const t = e.target;
+  t.setRangeText("  ", t.selectionStart, t.selectionEnd, "end");
+}
+
+/* ---- questions ---- */
+
+function renderQuestion(stage) {
+  const lesson = LESSONS[S.lesson];
+  const q = lesson.questions[S.q];
+  const track = lesson.questions.map((_, i) => {
+    const r = S.results[i];
+    return `<span class="${r != null ? "r" + r : i === S.q ? "now" : ""}"></span>`;
+  }).join("");
+
+  const prompt = q.type === "output" ? "What does this code print?"
+    : q.type === "value" ? "What does this code return?" : q.prompt;
+
+  let answer = "";
+  if (q.type === "choice") {
+    answer = `<div class="choices" role="group" aria-label="Choices">${q.choices.map((c, i) =>
+      `<button class="choice" type="button" data-choice="${i}"><span class="letter">${"abcd"[i]}</span><span>${esc(c)}</span></button>`).join("")}</div>`;
+  } else if (q.type === "write") {
+    answer = `<div class="answer"><label for="answer">Your Ruby code <span class="kbd">· Ctrl+Enter to check</span></label>
+      <div class="write-box"><textarea class="code" id="answer" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea></div></div>`;
+  } else {
+    const help = q.type === "output"
+      ? "Type exactly what appears on screen. Several lines? Separate them with spaces."
+      : 'Write it the way Ruby shows it, e.g. 42, 2.5, "text", [1, 2], true, nil';
+    answer = `<div class="answer"><label for="answer">${help}</label>
+      <div class="answer-line"><span class="prompt">${q.type === "value" ? "=&gt;" : "&gt;"}</span>
+      <input id="answer" type="text" spellcheck="false" autocapitalize="off" autocomplete="off"></div></div>`;
+  }
+
+  stage.innerHTML = `
+    <div class="track" aria-hidden="true">${track}</div>
+    <div class="qhead">
+      <p class="eyebrow">Question ${S.q + 1} of ${lesson.questions.length}</p>
+      <span class="kind">${esc(lesson.title)} · ${KINDS[q.type]}</span>
+    </div>
+    <p class="qprompt">${inline(prompt)}</p>
+    ${q.code ? `<pre class="code">${highlight(q.code)}</pre>` : ""}
+    ${answer}
+    <div class="feedback" id="feedback" hidden></div>
+    <div class="row" id="actions">
+      ${q.type === "choice" ? "" : `<button class="btn primary" id="check" type="button">Check</button>`}
+      <button class="btn" id="hint" type="button"${q.hint ? "" : " hidden"}>Hint</button>
+      <button class="btn quiet" id="skip" type="button">Skip</button>
+    </div>`;
+
+  stage.querySelectorAll("[data-choice]").forEach((b) => (b.onclick = () => submit(Number(b.dataset.choice))));
+  const input = $("#answer", stage);
+  if (input) {
+    input.addEventListener("keydown", (e) => {
+      if (input.tagName === "TEXTAREA") {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submit(); }
+        else indentOnTab(e);
+      } else if (e.key === "Enter") { e.preventDefault(); submit(); }
+    });
+    if (input.tagName === "TEXTAREA") input.addEventListener("input", () => sizeToFit(input));
+  }
+  const check = $("#check", stage);
+  if (check) check.onclick = () => submit();
+  $("#hint", stage).onclick = () => showFeedback("hint", "Hint", esc(q.hint));
+  $("#skip", stage).onclick = () => resolve(0, { skipped: true });
+}
+
+function focusAnswer() {
+  const el = $("#answer") || $("[data-choice]");
+  if (el) el.focus({ preventScroll: true });
+}
+
+function showFeedback(kind, verdict, bodyHtml) {
+  const box = $("#feedback");
+  box.className = "feedback " + kind;
+  box.innerHTML = `<p class="verdict">${verdict}</p>${bodyHtml ? `<p>${bodyHtml}</p>` : ""}`;
+  box.hidden = false;
+  return box;
+}
+
+let busy = false;
+
+async function submit(choiceIndex) {
+  if (S.resolved || busy) return;
+  const q = LESSONS[S.lesson].questions[S.q];
+  let answer;
+  if (q.type === "choice") answer = choiceIndex;
+  else {
+    answer = $("#answer").value;
+    if (!answer.trim()) { $("#answer").focus(); return; }
+  }
+
+  busy = true;
+  const check = $("#check");
+  if (check) { check.disabled = true; check.textContent = q.type === "write" && Engine.state === "loading" ? "Waiting for Ruby…" : "Checking…"; }
+  const verdict = await grade(q, answer);
+  busy = false;
+  if (check) { check.disabled = false; check.textContent = "Check"; }
+
+  if (verdict.selfCheck) return offerSelfCheck(q);
+  if (verdict.ok) return resolve(S.tries === 0 ? 2 : 1, { note: verdict.note });
+
+  S.tries += 1;
+  if (q.type === "choice") {
+    const btn = document.querySelector(`[data-choice="${choiceIndex}"]`);
+    btn.classList.add("wrong");
+    btn.disabled = true;
+  }
+  if (S.tries >= 2) return resolve(0, { note: verdict.note });
+
+  const parts = [];
+  if (verdict.note) parts.push(esc(verdict.note));
+  if (q.hint) parts.push(`<strong>Hint:</strong> ${esc(q.hint)}`);
+  parts.push("You have one more try.");
+  showFeedback("bad", "Not quite", parts.join("<br>"));
+  const input = $("#answer");
+  if (input) { input.focus(); input.select(); }
+}
+
+/* ---- grading ---- */
+
+async function grade(q, answer) {
+  switch (q.type) {
+    case "choice": return { ok: answer === q.answer };
+    case "output": return gradeOutput(q, answer);
+    case "value": return gradeValue(q, answer);
+    case "write": return gradeWrite(q, answer);
+  }
+}
+
+function gradeOutput(q, answer) {
+  const expected = squish(q.expected);
+  const given = squish(answer);
+  if (given === expected) return { ok: true };
+  if (given.replace(/^"|"$/g, "") === expected || given.replace(/^'|'$/g, "") === expected) {
+    return { ok: true, note: "puts and print don't show the quotes. They print just the text." };
+  }
+  if (given.toLowerCase() === expected.toLowerCase()) return { ok: false, note: "Check your capital letters. Ruby output is case-sensitive." };
+  return { ok: false };
+}
+
+// Remove spaces outside string literals and use double quotes, so [1,2] matches [1, 2].
+function canonical(src) {
+  let out = "";
+  for (const m of src.trim().matchAll(/"(?:\\.|[^"\\])*"|'((?:\\.|[^'\\])*)'|\s+|[^\s"']+|["']/g)) {
+    if (/^\s/.test(m[0])) continue;
+    out += m[1] !== undefined && !m[1].includes('"') && !m[1].includes("\\") ? `"${m[1]}"` : m[0];
+  }
+  return out;
+}
+
+async function gradeValue(q, answer) {
+  const expected = q.expected;
+  const given = answer.trim();
+  if (canonical(given) === canonical(expected)) return { ok: true };
+
+  if (expected.startsWith('"')) {
+    let text;
+    try { text = JSON.parse(expected); } catch (e) { text = null; }
+    if (text !== null && given === text) {
+      return { ok: true, note: `Ruby shows it as ${expected}. The quotes mark it as a String.` };
+    }
+  }
+  if (expected.startsWith(":") && given === expected.slice(1)) {
+    return { ok: false, note: "Close! Don't forget the colon that makes it a Symbol." };
+  }
+
+  if (Ruby.available()) {
+    const r = await Ruby.same(given, expected);
+    if (r.parts) {
+      const [result, a, b] = r.parts;
+      if (result === "1") return { ok: true };
+      if (result === "type") return { ok: false, note: `Right number, wrong type: Ruby gives a${/^[AEIOU]/.test(a) ? "n" : ""} ${a}, you gave a${/^[AEIOU]/.test(b) ? "n" : ""} ${b}.` };
+      if (result === "err" && /NameError/.test(a) && /^[a-z]/i.test(given) && !expected.startsWith('"')) {
+        return { ok: false };
+      }
+      if (result === "err" && expected.startsWith('"')) return { ok: false, note: "Strings need quotes around them." };
+      return { ok: false };
+    }
+  }
+  const n1 = Number(given), n2 = Number(expected);
+  if (given !== "" && !Number.isNaN(n1) && n1 === n2) {
+    return { ok: false, note: expected.includes(".") ? "Right number, but Ruby gives a Float here (it has a decimal point)." : "Right number, but Ruby gives an Integer here (no decimal point)." };
+  }
+  return { ok: false };
+}
+
+async function gradeWrite(q, answer) {
+  await Engine.settled();
+  if (!Ruby.available()) {
+    if (squish(answer) === squish(q.solution)) return { ok: true };
+    return { selfCheck: true };
+  }
+  const r = await Ruby.check(answer, q.tests);
+  if (r.timeout) return { ok: false, note: `Your code ran for more than ${TIME_LIMIT_MS / 1000} seconds. Is there a loop that never ends?` };
+  if (r.error) return { selfCheck: true };
+  const [passed, note] = r.parts;
+  return { ok: passed === "1", note };
+}
+
+function offerSelfCheck(q) {
+  const box = showFeedback("hint", "Compare with a model answer",
+    `Ruby couldn't run in this browser, so check your code against this one. Does yours do the same thing?
+     <span class="solution">${esc(q.solution)}</span>`);
+  box.insertAdjacentHTML("beforeend", `<div class="row"><button class="btn primary" id="self-yes" type="button">Mine does the same</button>
+    <button class="btn" id="self-no" type="button">Mine is different</button></div>`);
+  $("#self-yes").onclick = () => resolve(S.tries === 0 ? 2 : 1, {});
+  $("#self-no").onclick = () => resolve(0, {});
+  $("#self-yes").focus();
+}
+
+function correctAnswer(q) {
+  switch (q.type) {
+    case "choice": return `${"abcd"[q.answer]}) ${q.choices[q.answer]}`;
+    case "output": return q.expected.trimEnd();
+    case "value": return q.expected;
+    case "write": return q.solution;
+  }
+}
+
+function resolve(points, { note, skipped } = {}) {
+  const lesson = LESSONS[S.lesson];
+  const q = lesson.questions[S.q];
+  S.resolved = true;
+  S.results[S.q] = points;
+
+  const answerEl = $("#answer");
+  if (answerEl) answerEl.readOnly = true;
+  document.querySelectorAll("[data-choice]").forEach((b) => {
+    b.disabled = true;
+    if (Number(b.dataset.choice) === q.answer) b.classList.add("right");
+  });
+
+  const good = points > 0;
+  const verdict = good ? (points === 2 ? "Correct! +2" : "Correct on the second try. +1") : skipped ? "Skipped" : "Not this time";
+  const body = [];
+  if (note) body.push(esc(note));
+  if (!good && q.type !== "choice") body.push(`The answer:<span class="solution">${esc(correctAnswer(q))}</span>`);
+  if (good && q.type === "write" && points) body.push(`One way to write it:<span class="solution">${esc(q.solution)}</span>`);
+  body.push(esc(q.explain));
+  showFeedback(good ? "good" : "bad", verdict, body.join("<br>"));
+
+  const last = S.q === lesson.questions.length - 1;
+  $("#actions").innerHTML = `<button class="btn primary" id="next" type="button">${last ? "See your score →" : "Next question →"}</button>`;
+  $("#next").onclick = nextQuestion;
+  $("#next").focus({ preventScroll: true });
+  $("#feedback").scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+function nextQuestion() {
+  const lesson = LESSONS[S.lesson];
+  if (S.q < lesson.questions.length - 1) {
+    Object.assign(S, { q: S.q + 1, tries: 0, resolved: false });
+    render();
+    focusAnswer();
+    return;
+  }
+  const score = S.results.reduce((a, b) => a + b, 0);
+  Store.data.best[S.lesson] = Math.max(Store.data.best[S.lesson] || 0, score);
+  Store.save();
+  S.view = "summary";
+  render();
+  $("#stage").scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+/* ---- summary ---- */
+
+function renderSummary(stage) {
+  const lesson = LESSONS[S.lesson];
+  const score = S.results.reduce((a, b) => a + b, 0);
+  const max = maxPoints(lesson);
+  const missed = S.results.filter((r) => r === 0).length;
+  const message = score === max ? "A perfect run. Every answer right on the first try."
+    : missed === 0 ? "Every question answered, some on the second try. Nice work."
+    : `${missed} question${missed > 1 ? "s" : ""} to revisit. Run the lesson again whenever you like; your best score is kept.`;
+  const hasNext = S.lesson < LESSONS.length - 1;
+  stage.innerHTML = `
+    <div>
+      <p class="eyebrow">Lesson ${S.lesson + 1} complete</p>
+      <h2>${esc(lesson.title)}</h2>
+    </div>
+    <div class="score">${score}<small> / ${max} points</small></div>
+    <p style="margin:0">${message}</p>
+    <ol class="recap">${lesson.questions.map((q, i) => `<li><span class="pts p${S.results[i]}">+${S.results[i]}</span>
+      <span>${i + 1}. ${esc(q.type === "output" || q.type === "value" ? q.code.split("\n").join(" · ") : q.prompt)}</span></li>`).join("")}</ol>
+    <div class="row">
+      ${hasNext ? `<button class="btn primary" id="next-lesson" type="button">Next: ${esc(LESSONS[S.lesson + 1].title)} →</button>` : ""}
+      <button class="btn" id="retry" type="button">Try this lesson again</button>
+    </div>
+    ${hasNext ? "" : `<p class="prose" style="margin:0">That's the whole course. To keep going, install Ruby and experiment in <code>irb</code>, its interactive console.</p>`}`;
+  if (hasNext) $("#next-lesson", stage).onclick = () => openLesson(S.lesson + 1);
+  $("#retry", stage).onclick = () => openLesson(S.lesson);
+  ($("#next-lesson", stage) || $("#retry", stage)).focus({ preventScroll: true });
+}
+
+/* ================= boot ================= */
+
+function onEngineChange() {
+  const out = $("#try-out");
+  if (out && out.querySelector(".muted") && out.textContent !== "Running…") out.innerHTML = `<span class="muted">${consoleHint()}</span>`;
+}
+
+document.getElementById("lessons").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-lesson]");
+  if (btn) openLesson(Number(btn.dataset.lesson));
+});
+
+Store.load();
+S.lesson = Math.min(Number(Store.data.last) || 0, LESSONS.length - 1);
+render();
+Engine.boot();
+</script>

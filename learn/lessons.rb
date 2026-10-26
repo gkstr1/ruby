@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 
 # The curriculum for Ruby Quest. Each lesson opens with a short explanation,
-# then asks questions of four kinds:
+# offers a runnable `try` example, then asks questions of four kinds:
 #
 #   output  - "What does this print?"
 #   value   - "What does this return?"
 #   choice  - multiple choice
-#   write   - the player writes Ruby; `check` decides whether it works
+#   write   - the player writes Ruby, which must pass every entry in `tests`:
+#             each runs `before` + their code + `after` and compares the
+#             printed output (`out`) and/or the final value (`value`)
 #
 # Expected answers for output/value questions are computed by actually
 # running the code, so they can never drift out of sync with Ruby itself.
@@ -25,6 +27,14 @@ module RubyQuest
       Text in quotes is called a String. Anything after a # is a comment:
       Ruby ignores it, so it's a note for humans.
     TEXT
+
+    try <<~'RUBY'
+      puts "Hello!"
+      print "Hi "
+      print "there"
+      puts
+      puts "Ruby" + "!"
+    RUBY
 
     choice "Which method prints text and then moves to a new line?",
            ["print", "puts", "echo", "console.log"], answer: 1,
@@ -47,7 +57,7 @@ module RubyQuest
 
     write "Write a line of Ruby that prints exactly: Hello, World!",
           solution: 'puts "Hello, World!"',
-          check: ->(run) { run.().text == "Hello, World!" },
+          tests: [{ out: "Hello, World!" }],
           hint: "Use puts followed by the text in double quotes.",
           explain: "puts \"Hello, World!\" — the traditional first program in every language."
   end
@@ -70,6 +80,14 @@ module RubyQuest
       In these questions, "what does it return" means the value Ruby calculates.
       Type it the way Ruby would show it (e.g. 3.5, or "text" with quotes).
     TEXT
+
+    try <<~'RUBY'
+      puts 7 / 2
+      puts 7.0 / 2
+      puts 10 % 3
+      puts 2 ** 10
+      3.14.class
+    RUBY
 
     value "7 + 3 * 2",
           hint: "Ruby follows the usual math order: * before +.",
@@ -98,7 +116,7 @@ module RubyQuest
 
     write "Write an expression that calculates how many seconds are in a day (24 hours × 60 minutes × 60 seconds).",
           solution: "24 * 60 * 60",
-          check: ->(run) { run.().value == 86_400 },
+          tests: [{ value: 86_400 }],
           hint: "Multiply the three numbers with *.",
           explain: "24 * 60 * 60 is 86400. Ruby is a handy calculator!"
   end
@@ -120,6 +138,14 @@ module RubyQuest
       Variable names use lowercase letters and underscores: first_name, total_score.
     TEXT
 
+    try <<~'RUBY'
+      name = "Ada"
+      age = 36
+      age += 1
+      puts name
+      puts age
+    RUBY
+
     output %(name = "Ada"\nputs "Hi, " + name),
            explain: "name holds \"Ada\", so \"Hi, \" + name becomes \"Hi, Ada\"."
 
@@ -140,7 +166,7 @@ module RubyQuest
 
     write "Create a variable called price set to 25, then print price multiplied by 4.",
           solution: "price = 25; puts price * 4",
-          check: ->(run) { run.().text == "100" && run.("", "price").value == 25 },
+          tests: [{ out: "100" }, { after: "price", value: 25 }],
           hint: "Two statements: price = 25 ; puts price * 4",
           explain: "price = 25 stores the number; puts price * 4 prints 100."
   end
@@ -162,6 +188,14 @@ module RubyQuest
       Strings and numbers don't mix with +. Convert with .to_s (to string)
       or .to_i (to integer):  "Age: " + 30.to_s
     TEXT
+
+    try <<~'RUBY'
+      name = "Matz"
+      puts "Hi, #{name}!"
+      puts 'Hi, #{name}!'
+      puts "hello".upcase.reverse
+      "Age: " + 30.to_s
+    RUBY
 
     output %(name = "Matz"\nputs "Hello, \#{name}!"),
            explain: "Inside double quotes, \#{name} is replaced with the variable's value."
@@ -191,7 +225,7 @@ module RubyQuest
 
     write 'Given name = "ruby", write ONE string using interpolation that evaluates to "I love ruby!"',
           solution: '"I love #{name}!"',
-          check: ->(run) { run.('name = "ruby"').value == "I love ruby!" && run.('name = "cats"').value == "I love cats!" },
+          tests: [{ before: 'name = "ruby"', value: "I love ruby!" }, { before: 'name = "cats"', value: "I love cats!" }],
           hint: 'Use double quotes and put #{name} where the word goes.',
           explain: "\"I love \#{name}!\" works for any name — that's the power of interpolation."
   end
@@ -216,9 +250,25 @@ module RubyQuest
             puts "Cold"
           end
 
-      Short versions:  puts "Hot" if temperature > 25
-                       puts "Brr" unless temperature > 15
+      Short one-line versions:
+
+          puts "Hot" if temperature > 25
+          puts "Brr" unless temperature > 15
     TEXT
+
+    try <<~'RUBY'
+      temperature = 20
+
+      if temperature > 25
+        puts "Hot"
+      elsif temperature > 15
+        puts "Nice"
+      else
+        puts "Cold"
+      end
+
+      puts "Brr" unless temperature > 15
+    RUBY
 
     value "10 >= 10",
           explain: ">= means greater than OR equal to, and 10 equals 10."
@@ -243,9 +293,7 @@ module RubyQuest
 
     write "Given a number n, print \"even\" if it is even, otherwise print \"odd\". (Tip: n % 2 == 0 or n.even?)",
           solution: 'if n.even? then puts "even" else puts "odd" end',
-          check: lambda { |run|
-            run.("n = 4").text == "even" && run.("n = 7").text == "odd" && run.("n = 0").text == "even"
-          },
+          tests: [{ before: "n = 4", out: "even" }, { before: "n = 7", out: "odd" }, { before: "n = 0", out: "even" }],
           hint: 'One-line form: if n.even? then puts "even" else puts "odd" end',
           explain: "if/else picks one of two paths. A shorter style: puts(n.even? ? \"even\" : \"odd\")"
   end
@@ -264,6 +312,15 @@ module RubyQuest
       Useful methods: length, first, last, sort, include?, sum, max, join.
       Add an item with <<  :  colors << "pink"
     TEXT
+
+    try <<~'RUBY'
+      colors = ["red", "green", "blue"]
+      colors << "pink"
+      puts colors[0]
+      puts colors[-1]
+      puts colors.length
+      colors.sort
+    RUBY
 
     value '["red", "green", "blue"][1]',
           hint: "The first item is at index 0.",
@@ -289,7 +346,7 @@ module RubyQuest
 
     write "Given an array nums, write an expression that returns the sum of all its numbers.",
           solution: "nums.sum",
-          check: ->(run) { run.("nums = [4, 8, 15, 16, 23, 42]").value == 108 && run.("nums = [1, 2]").value == 3 },
+          tests: [{ before: "nums = [4, 8, 15, 16, 23, 42]", value: 108 }, { before: "nums = [1, 2]", value: 3 }],
           hint: "There's a method whose name is exactly what you want to do.",
           explain: "nums.sum adds everything up. Ruby methods often read like English."
   end
@@ -310,6 +367,14 @@ module RubyQuest
 
       Asking for a key that isn't there gives nil, which means "nothing".
     TEXT
+
+    try <<~'RUBY'
+      scores = { alice: 10, bob: 7 }
+      scores[:carol] = 5
+      puts scores[:bob]
+      p scores[:nobody]
+      scores
+    RUBY
 
     value %(person = { "name" => "Ada", "age" => 36 }\nperson["age"]),
           explain: "Looking up the key \"age\" gives its value, 36."
@@ -333,7 +398,7 @@ module RubyQuest
 
     write "Given stock = { apples: 5 }, add bananas with a count of 3, and finish by returning stock.",
           solution: "stock[:bananas] = 3; stock",
-          check: ->(run) { run.("stock = { apples: 5 }").value == { apples: 5, bananas: 3 } },
+          tests: [{ before: "stock = { apples: 5 }", value: { apples: 5, bananas: 3 } }],
           hint: "stock[:bananas] = 3 ; stock",
           explain: "hash[key] = value adds a pair. Ending with just stock makes it the returned value."
   end
@@ -360,6 +425,19 @@ module RubyQuest
           end
     TEXT
 
+    try <<~'RUBY'
+      3.times { puts "hi" }
+      (1..3).each { |n| puts n * 10 }
+
+      i = 0
+      while i < 3
+        puts "i is #{i}"
+        i += 1
+      end
+
+      (1...4).to_a
+    RUBY
+
     output '3.times { print "hi " }',
            explain: "The block runs 3 times, printing hi each time."
 
@@ -382,7 +460,7 @@ module RubyQuest
 
     write "Print the numbers 1 to 5, each on its own line.",
           solution: "(1..5).each { |n| puts n }",
-          check: ->(run) { run.().lines == %w[1 2 3 4 5] },
+          tests: [{ out: "1\n2\n3\n4\n5" }],
           hint: "(1..5).each { |n| puts n }   — or try 1.upto(5) { ... }",
           explain: "(1..5).each, 1.upto(5) and 5.times { |i| puts i + 1 } all work."
   end
@@ -404,6 +482,20 @@ module RubyQuest
         ending in ?  → returns true/false        e.g. 5.even?
         ending in !  → changes the object itself  e.g. name.upcase!
     TEXT
+
+    try <<~'RUBY'
+      def greet(name = "friend")
+        "Hello, #{name}!"
+      end
+
+      puts greet
+      puts greet("Bob")
+
+      word = "hi".dup
+      word.upcase!
+      puts word
+      5.even?
+    RUBY
 
     output %(def greet(name)\n  "Hello, \#{name}"\nend\nputs greet("Bob")),
            explain: "greet returns its last line, \"Hello, Bob\", which puts then prints."
@@ -428,7 +520,7 @@ module RubyQuest
 
     write "Define a method called double that takes a number and returns it multiplied by 2.",
           solution: "def double(n) = n * 2",
-          check: ->(run) { run.("", "double(21)").value == 42 && run.("", "double(-3)").value == -6 },
+          tests: [{ after: "double(21)", value: 42 }, { after: "double(-3)", value: -6 }],
           hint: "def double(n); n * 2; end",
           explain: "def double(n); n * 2; end — or the newer one-liner style: def double(n) = n * 2"
   end
@@ -446,6 +538,14 @@ module RubyQuest
       When the block just calls one method, there's a shortcut:
           ["a", "b"].map(&:upcase)              # => ["A", "B"]
     TEXT
+
+    try <<~'RUBY'
+      nums = [1, 2, 3, 4, 5, 6]
+      p nums.map { |n| n * 2 }
+      p nums.select(&:even?)
+      p nums.find { |n| n > 3 }
+      nums.reduce(0) { |sum, n| sum + n }
+    RUBY
 
     value "[1, 2, 3].map { |n| n * 10 }",
           explain: "map builds a new Array from what the block returns for each item."
@@ -469,10 +569,8 @@ module RubyQuest
 
     write "Given words (an array of strings), return an array of just the words longer than 3 letters.",
           solution: "words.select { |w| w.length > 3 }",
-          check: lambda { |run|
-            run.('words = ["ruby", "is", "very", "fun"]').value == %w[ruby very] &&
-              run.('words = ["a", "longer"]').value == %w[longer]
-          },
+          tests: [{ before: 'words = ["ruby", "is", "very", "fun"]', value: %w[ruby very] },
+                  { before: 'words = ["a", "longer"]', value: %w[longer] }],
           hint: "select with a block that checks w.length > 3",
           explain: "words.select { |w| w.length > 3 } keeps only the long words."
   end
@@ -501,6 +599,24 @@ module RubyQuest
           rex.bark        # => "Rex says woof!"
     TEXT
 
+    try <<~'RUBY'
+      class Dog
+        attr_reader :name
+
+        def initialize(name)
+          @name = name
+        end
+
+        def bark
+          "#{@name} says woof!"
+        end
+      end
+
+      rex = Dog.new("Rex")
+      puts rex.name
+      rex.bark
+    RUBY
+
     value '"hello".class',
           explain: "Text in quotes is an instance of the String class."
 
@@ -523,11 +639,9 @@ module RubyQuest
     write "Define a class Light whose objects start off. Give it a toggle method that flips it and an on? method " \
           "that returns true or false.",
           solution: "class Light; def initialize; @on = false; end; def toggle; @on = !@on; end; def on?; @on; end; end",
-          check: lambda { |run|
-            run.("", "l = Light.new; l.on?").value == false &&
-              run.("", "l = Light.new; l.toggle; l.on?").value == true &&
-              run.("", "l = Light.new; l.toggle; l.toggle; l.on?").value == false
-          },
+          tests: [{ after: "l = Light.new; l.on?", value: false },
+                  { after: "l = Light.new; l.toggle; l.on?", value: true },
+                  { after: "l = Light.new; l.toggle; l.toggle; l.on?", value: false }],
           hint: "In initialize set @on = false; toggle does @on = !@on; on? just returns @on.",
           explain: "Instance variables like @on let each object remember its own state."
   end
@@ -548,6 +662,20 @@ module RubyQuest
             puts "That's not a number!"
           end
     TEXT
+
+    try <<~'RUBY'
+      name = nil
+      puts name || "guest"
+      p nil&.upcase
+
+      begin
+        Integer("abc")
+      rescue ArgumentError
+        puts "That's not a number!"
+      end
+
+      0 ? "0 is truthy" : "0 is falsy"
+    RUBY
 
     value %(x = 0\nx ? "truthy" : "falsy"),
           hint: "Only two values in Ruby count as false.",
@@ -572,7 +700,7 @@ module RubyQuest
     write "Given input (a String that may or may not be a number), return its Integer value, or 0 if " \
           "Integer(input) raises an error.",
           solution: "begin; Integer(input); rescue ArgumentError; 0; end",
-          check: ->(run) { run.('input = "42"').value == 42 && run.('input = "abc"').value.zero? },
+          tests: [{ before: 'input = "42"', value: 42 }, { before: 'input = "abc"', value: 0 }],
           hint: "begin; Integer(input); rescue ArgumentError; 0; end",
           explain: "begin/rescue lets your program recover from errors instead of crashing."
   end
