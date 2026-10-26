@@ -295,7 +295,7 @@ const Engine = {
 
   async boot() {
     try {
-      const res = await fetch("ruby.wasm.gz");
+      const res = await fetch("ruby.gz.wasm");
       if (!res.ok) throw new Error("download failed (" + res.status + ")");
       let bytes = new Uint8Array(await res.arrayBuffer());
       if (bytes[0] === 0x1f && bytes[1] === 0x8b) {

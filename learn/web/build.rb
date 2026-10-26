@@ -5,7 +5,7 @@
 #
 #   ruby learn/web/build.rb
 #
-# Writes learn/web/dist/index.html plus dist/ruby.wasm.gz, the in-browser Ruby
+# Writes learn/web/dist/index.html plus dist/ruby.gz.wasm, the in-browser Ruby (gzipped)
 # (downloaded from npm on first build). Publish both files side by side.
 
 require "json"
@@ -59,7 +59,7 @@ module RubyQuest
     def safe_json(data) = JSON.generate(data).gsub("</", "<\\/")
 
     def fetch_wasm
-      target = File.join(DIST, "ruby.wasm.gz")
+      target = File.join(DIST, "ruby.gz.wasm") # gzipped; .wasm so artifact hosts serve it
       return if File.exist?(target)
 
       puts "Downloading ruby.wasm from npm…"

@@ -42,5 +42,5 @@ ruby learn/ruby_quest.rb --self-test  # verify every question's answer key
 12. `nil`, truthiness and errors
 
 Add your own questions in `lessons.rb`, run `--self-test` to check them, then
-rebuild the web page. `learn/web/dist/` holds `index.html` and `ruby.wasm.gz`
+rebuild the web page. `learn/web/dist/` holds `index.html` and `ruby.gz.wasm`
 (downloaded from npm on the first build); serve or publish them side by side.
